@@ -1,0 +1,3 @@
+Code for simulation-based analyses in 'Gene conversion limits the cost of asexuality in somatically immortal worms' (Kershenbaum et al., 2025; DOI). The folders include:
+- **simulations**: A simple Snakemake pipeline for running individual-based genetically-explicit simulations of obligate / facultative mitotic asexuality with gene conversion. If asexual reproduction is facultative (or absent), offpsring are produced sexually with crossover recombination. The simulation models are written in SLiM4, implementing Wright-Fisher-like dynamics using non-Wright-Fisher machinery (see section 15.13 of the SLiM manual; https://github.com/MesserLab/SLiM/releases/download/v4.3/SLiM_Manual.pdf).
+- **plots**: All code for analysing and plotting simulation output.

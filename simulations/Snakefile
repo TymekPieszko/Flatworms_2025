@@ -1,0 +1,72 @@
+configfile: "config.yaml"
+
+### PARAMETERS ###
+# Population
+L = config['L']
+N = config['N']
+# Reproduction
+SEX_lst = config['SEX_lst'] # Rate of sexual reproduction
+# Recombination
+CO = config['CO'] # Crossover rate per base pair during sex
+GC_lst = config['GC_lst'] # Mitotic gene conversion rates
+TRACT = config['TRACT'] # Mean GC tract length of 1 kb; LOH = GC * TRACT
+# Mutation
+MUT = config['MUT']
+S_MEAN = config['S_MEAN']
+S_SHAPE = config['S_SHAPE']
+# Simulation
+GENS = config['GENS']
+REP_NUM = int(config['REP_NUM']) # one value
+REP_lst = list(range(REP_NUM)) # create a list
+
+simulate_targets = expand("sim_output/ts/SEX~{SEX}/GC~{GC}/{REP}.trees", N=N, MUT=MUT, TRACT=TRACT, GENS=GENS, SEX=SEX_lst, GC=GC_lst, REP=REP_lst)
+
+def get_SEX(x):
+    SEX = x.split("/")[2].split("~")[1]
+    return SEX
+def get_REP(x):
+    REP = x.split("/")[4].split(".")[0]
+    return int(REP)
+
+# If sex is obligate, simulate fewer replicates (simulations are the same for different gene conversion rates)
+sex_reps = REP_NUM // 10
+simulate_targets = [target for target in simulate_targets if (get_SEX(target) != "1.0") or (get_SEX(target) == "1.0") and (get_REP(target) < sex_reps)]
+
+rule all:
+    input:
+        simulate_targets
+
+rule simulate:
+    output:
+        TS_FILE = "sim_output/ts/SEX~{SEX}/GC~{GC}/{REP}.trees",
+        FITNESS_FILE = "sim_output/fitness/SEX~{SEX}/GC~{GC}/{REP}.txt",
+    conda:
+        "slim"
+    params:
+        L = L,
+        N = N,     
+        CO = CO,
+        TRACT = TRACT,
+        MUT = MUT,
+        S_MEAN = S_MEAN,
+        S_SHAPE = S_SHAPE,
+        GENS = GENS
+    threads: 1
+    resources:
+        mem_mb=10000, # 10 MB
+        runtime=10
+    shell:
+        "time slim "
+        "-d L={params.L} "
+        "-d N={params.N} "
+        "-d TRACT={params.TRACT} "
+        "-d GENS={params.GENS} "
+        "-d SEX={wildcards.SEX} "
+        "-d GC={wildcards.GC} "
+        "-d MUT={params.MUT} "
+        "-d S_MEAN={params.S_MEAN} "
+        "-d S_SHAPE={params.S_SHAPE} "
+        "-d 'TS_FILE=\"{output.TS_FILE}\"' "
+        "-d 'FITNESS_FILE=\"{output.FITNESS_FILE}\"' "
+        "-d 'CO={params.CO}' "
+        "scripts/asex_with_conversion.slim"

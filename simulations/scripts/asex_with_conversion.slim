@@ -1,0 +1,103 @@
+initialize()
+{
+	initializeSLiMModelType("nonWF");
+	initializeTreeSeq();
+	initializeMutationType("m1", 0.2, "g", S_MEAN, S_SHAPE);		
+	m1.convertToSubstitution = T;
+	initializeGenomicElementType("g1", m1, 1.0);
+	initializeGenomicElement(g1, 0, L-1);
+	initializeMutationRate(MUT);
+	initializeRecombinationRate(CO);
+	source("./scripts/conversion_functions.eidos");
+}
+
+// Individuals produce offspring according to fitness
+reproduction()
+{
+	K = sim.getValue("N");
+	fitness = p1.cachedFitness(NULL);
+	parents1 = sample(p1.individuals, N, replace=T, weights=fitness);
+	parents2 = sample(p1.individuals, N, replace=T, weights=fitness);
+	for (i in seqLen(K))
+	{
+		mode = sample(c('ASEX', 'SEX'), 1, weights=c(1 - SEX, SEX)); // Draw the reproductive mode to produce an offspring according to the frequencies of asexuality and sex
+		if (mode == 'ASEX')
+		{
+			parent = parents1[i];
+			gen1 = parent.genome1;
+			gen2 = parent.genome2;
+			breaks = draw_tracts(r=GC, i_max=L - 1, lambda=TRACT);
+			
+			// Randomise the copying directions of GC tracts
+			direction_vector = get_copying_directions(breaks);
+			breaks1 = breaks[direction_vector];
+			breaks2 = breaks[!direction_vector];
+			
+			// Shuffle SLiM genomes between the locations; matters for tree-based analyses, does not matter here
+			config = sample(c(1, 2), size=1, replace=T);
+			if (config == 1)
+			{
+				subpop.addRecombinant(gen1, gen2, breaks1, gen2, gen1, breaks2);
+			}
+			else if (config == 2)
+			{
+				subpop.addRecombinant(gen2, gen1, breaks2, gen1, gen2, breaks1);
+			}
+		}
+		else if (mode == 'SEX')
+		{
+			parent1 = parents1[i];
+			parent2 = parents2[i];
+			subpop.addCrossed(parent1, parent2);
+		}
+	}
+	self.active = 0;
+}
+
+1 early()
+{
+	sim.setValue("N", N);
+	sim.addSubpop("p1", 1);
+}
+
+1 late() {
+	deleteFile(FITNESS_FILE);
+}
+
+late() {
+	if (community.tick % 1000 == 0) {
+		fit_mean = mean(p1.cachedFitness(NULL));
+		writeFile(FITNESS_FILE, paste(fit_mean), append=T);
+	}
+}
+
+survival()
+{
+	// survival is independent of fitness; parents die, offspring live
+	return (individual.age == 0);
+}
+
+GENS late() {
+	// genome_sample = p1.sampleIndividuals(50).genomes;
+	// genome_sample.outputVCF(VCF_FILE);
+
+	// WRITE THE GENOTYPE FILE
+	// (!!) Note you finally performed the filtering + calculations in Python; keeping this part for future reference
+	// deleteFile(GENOTYPE_FILE);
+	// for (mut in sim.mutations) {
+	// 	if (sum(p1.individuals.containsMutations(mut))>3) {
+	// 		altHomCount = 0;
+	// 		for (ind in sim.subpopulations.individuals) {
+	// 			if (sum(c(ind.genome1.containsMutations(mut), ind.genome2.containsMutations(mut)))==2) {
+	// 				altHomCount = altHomCount + 1;			
+	// 			}
+	// 		}
+	// 		altHomProp = altHomCount / (sim.mutationCounts(NULL, mut) - altHomCount); 
+	// 		writeFile(GENOTYPE_FILE, paste(c(mut.selectionCoeff, altHomProp), sep="\t"), append=T);
+	// 	}
+	// }
+
+
+	// WRITE THE TREE SEQUENCE
+	sim.treeSeqOutput(TS_FILE);
+}
