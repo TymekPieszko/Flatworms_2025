@@ -4,3 +4,4 @@ simulations/asex_with_conversion_muts_SLiMGui.slim
 simulations/asex_with_conversion_muts.sh
 simulations/cml_model_test.txt
 simulations/functions.eidos
+plots/genotypes/
